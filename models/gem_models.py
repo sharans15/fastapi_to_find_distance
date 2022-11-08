@@ -7,8 +7,8 @@ from models.user_models import User
 class Gem(SQLModel, table=True):
     id: Optional[int] = Field(primary_key=True)
     location: str
-    latitude: Optional[float]
-    longitude: Optional[float]
+    distance: Optional[float]
+    
     
 
 

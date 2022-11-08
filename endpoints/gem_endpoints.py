@@ -23,25 +23,110 @@ def greet():
 
 
 @gem_router.get('/gems', tags=['Gems'])
-def gems(lte_lat: Optional[int] = None, gte_lat: Optional[int] = None,lte_lon: Optional[int] = None,gte_lon:Optional[int] = None):
+def gems(places_farther_than: Optional[int] = None):
     gems = select(Gem)
-    if lte_lat:
-        gems = gems.where(Gem.latitude <= lte_lat)
-    if gte_lat:
-        gems = gems.where(Gem.latitude >= gte_lat)
+    
+    if places_farther_than:
+        gems = gems.where(Gem.distance >= 0)
+    
 
-    if lte_lon:
-        gems = gems.where(Gem.longitude <= lte_lon)
 
-    if gte_lon:
-        gems = gems.where(Gem.longitude >= gte_lon)
     if type:
-        gems = gems.order_by(-Gem.latitude).order_by(-Gem.longitude).order_by(None)
+        gems = gems.order_by(-Gem.distance).order_by(-Gem.distance).order_by(None)
     gems = session.exec(gems).all()
-    # emp = []
-    # for x in gems:
-    #     emp.append(list(x)[0])
-    # print(emp)
+
+    #THIS WAY WE GET THE LOCATIONS AND NAMES AND ID OF 
+    # ALL THE PLACES AND THEN WE USE THESE NAMES AND GET THE LOCATION OF THE ENTERED PLACES FROM THE USERS CURRENT LOCATION. 
+    # FOR EXAMPLE IF THE DEVELOPER ENTERS A CITY BANGALORE WHILE SITTING AT MUMBAI 
+    # THEN THE DISTANCE SAY IS 900 miles AND NOW THE CONSUMER IF RUNS THIS API FROM BANGALORE 
+    # WITH A FILTER OF PLACES FARTHER THAN 800 MILESS THEN BY LOGIC BANGALORE SHOULD NOT COME WHILE THE
+    # CONSUMER IS IN BANGALORE BECUSE BANGALORE IS NOT 900 MILES FROM BANGALORE.
+
+
+    emp = []
+    empid = []
+    for x in gems:
+        print(str(x))
+        for y in x:
+            
+            if 'location' in y:
+                print("Please wait while we get location")
+                v2 = y[1]
+                emp.append(v2)
+            if 'id' in y:
+                print("please wait while we get id")
+                v3 = y[1]
+                empid.append(v3)
+    
+    test_keys = emp
+    test_values = empid
+    
+    
+    
+   
+    res = {}
+    for key in test_keys:
+        for value in test_values:
+            res[key] = value
+            test_values.remove(value)
+
+            break
+    
+    dist_val = []
+    locs_place = []
+    for i in res.keys():
+        dict1 = {}
+        loc = Nominatim(user_agent="GetLoc")
+    
+        # entering the location name
+        getLoc = loc.geocode(i)
+        
+        # printing address
+        
+        
+        # printing latitude and longitude
+        
+
+        val_lat = getLoc.latitude
+        val_lon = getLoc.longitude
+       
+
+        import geocoder
+        g = geocoder.ip('me')
+        
+
+        val = g.latlng
+
+        lat2 = val[0]
+        lon2 = val[1]
+
+        loc1 = (val_lat,val_lon)
+        loc2 = (lat2,lon2)
+        import haversine as hs
+        from haversine import Unit
+
+        
+        dist = hs.haversine(loc1,loc2,unit = Unit.MILES)
+        dist_val.append(dist)
+        gems = select(Gem)
+
+
+
+        if places_farther_than:
+            if dist >=places_farther_than:
+                dict1['id'] = res[i]
+                dict1['location'] = (i)
+                dict1['distance'] = dist
+                dict1['unit'] = "Miles"
+                locs_place.append(dict1)
+
+                
+
+        
+
+    
+
+    gems = locs_place
     return {'gems': gems}
 
 
@@ -68,7 +153,26 @@ def create_gem(gem: Gem, user=Depends(auth_handler.get_current_user)):
     val_lat = getLoc.latitude
     val_lon = getLoc.longitude
 
-    gem_v = Gem(latitude=val_lat, seller=user,location=gem.location,longitude=val_lon)
+
+    import geocoder
+    g = geocoder.ip('me')
+
+
+    val = g.latlng
+
+    lat2 = val[0]
+    lon2 = val[1]
+
+    loc1 = (val_lat,val_lon)
+    loc2 = (lat2,lon2)
+    import haversine as hs
+    from haversine import Unit
+
+    
+    dist = hs.haversine(loc1,loc2,unit = Unit.MILES)
+
+
+    gem_v = Gem(distance=dist, seller=user,location=gem.location)
     session.add(gem_v)
 
     session.commit()
@@ -109,14 +213,3 @@ def delete_gem(id:int, user=Depends(auth_handler.get_current_user)):
         session.commit()
     except:
         return JSONResponse(status_code=HTTP_404_NOT_FOUND,content="not found")
-
-
-# @gem_router.get('/gems/seller/me', tags=['seller'],
-#                 response_model=List[Dict[str, Union[Gem, GemProperties]]])
-# def gems_seller(user=Depends(auth_handler.get_current_user)):
-#     if not user.is_seller:
-#         return JSONResponse(status_code=HTTP_401_UNAUTHORIZED)
-#     statement = select(Gem, GemProperties).where(Gem.seller_id == user.id).join(GemProperties)
-#     gems = session.exec(statement).all()
-#     res = [{'gem': gem, 'props': props} for gem, props in gems]
-#     return res

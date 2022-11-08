@@ -7,3 +7,5 @@ bcrypt
 passlib
 pydantic[email]
 geopy
+haversine
+geocoder
